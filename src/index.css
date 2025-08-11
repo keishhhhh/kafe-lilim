@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Warm café brown theme */
+    --background: 35 25% 96%;
+    --foreground: 25 15% 15%;
+
+    --card: 35 35% 98%;
+    --card-foreground: 25 15% 15%;
+
+    --popover: 35 35% 98%;
+    --popover-foreground: 25 15% 15%;
+
+    --primary: 25 35% 25%;
+    --primary-foreground: 35 25% 96%;
+
+    --secondary: 35 15% 88%;
+    --secondary-foreground: 25 15% 15%;
+
+    --muted: 35 15% 92%;
+    --muted-foreground: 25 10% 45%;
+
+    --accent: 30 40% 75%;
+    --accent-foreground: 25 15% 15%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 35 25% 96%;
+
+    --border: 35 20% 85%;
+    --input: 35 20% 90%;
+    --ring: 25 35% 25%;
+
+    /* Café specific colors */
+    --coffee-dark: 25 45% 20%;
+    --coffee-medium: 25 35% 35%;
+    --coffee-light: 30 25% 75%;
+    --cream: 35 30% 92%;
+    --espresso: 20 50% 15%;
+    
+    /* Gradients */
+    --gradient-coffee: linear-gradient(135deg, hsl(var(--coffee-dark)), hsl(var(--coffee-medium)));
+    --gradient-cream: linear-gradient(180deg, hsl(var(--cream)), hsl(var(--background)));
+    
+    /* Shadows */
+    --shadow-warm: 0 4px 20px hsl(var(--coffee-medium) / 0.15);
+    --shadow-coffee: 0 8px 32px hsl(var(--coffee-dark) / 0.2);
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    /* Dark café theme */
+    --background: 20 40% 8%;
+    --foreground: 35 25% 96%;
+
+    --card: 25 30% 12%;
+    --card-foreground: 35 25% 96%;
+
+    --popover: 25 30% 12%;
+    --popover-foreground: 35 25% 96%;
+
+    --primary: 35 25% 96%;
+    --primary-foreground: 25 35% 25%;
+
+    --secondary: 25 20% 18%;
+    --secondary-foreground: 35 25% 96%;
+
+    --muted: 25 15% 15%;
+    --muted-foreground: 35 15% 65%;
+
+    --accent: 30 30% 45%;
+    --accent-foreground: 35 25% 96%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 35 25% 96%;
+
+    --border: 25 20% 20%;
+    --input: 25 20% 18%;
+    --ring: 35 25% 96%;
+
+    /* Dark café specific colors */
+    --coffee-dark: 15 60% 8%;
+    --coffee-medium: 20 40% 15%;
+    --coffee-light: 25 25% 35%;
+    --cream: 35 20% 25%;
+    --espresso: 15 70% 5%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
