@@ -1,290 +1,502 @@
-const state = {
-  menu: [],
-  categories: [],
-  reviews: [],
-  settings: {},
-  loyalty: null,
-  activeCategory: 'all',
-  searchTerm: ''
-};
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kafe Lilim Staff Portal</title>
+    <style>
+      :root {
+        --bg: #f7f0e9;
+        --panel: #fffdfb;
+        --ink: #2f251f;
+        --muted: #695a51;
+        --primary: #45362d;
+        --accent: #c38d6a;
+        --line: #e7d9ce;
+        --success: #4f7e5d;
+        --warning: #b9714d;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+      }
+      .wrap {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .brand { font-weight: 700; font-size: 1.5rem; }
+      .logout-btn {
+        display: none;
+        background: var(--primary);
+        color: #fff;
+        border: 0;
+        border-radius: 999px;
+        padding: 10px 16px;
+        cursor: pointer;
+      }
+      .auth-card, .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        box-shadow: 0 12px 28px rgba(47,37,31,0.05);
+      }
+      .auth-card {
+        max-width: 420px;
+        margin: 120px auto 0;
+        padding: 28px;
+      }
+      .auth-card h2 { margin-top: 0; }
+      .field { display: grid; gap: 8px; margin-top: 14px; }
+      .field input, .field textarea, .field select {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: #fff;
+      }
+      .primary {
+        width: 100%;
+        padding: 12px 14px;
+        border: 0;
+        border-radius: 999px;
+        background: var(--primary);
+        color: #fff;
+        cursor: pointer;
+        margin-top: 18px;
+      }
+      .status {
+        min-height: 20px;
+        margin-top: 10px;
+        color: var(--muted);
+      }
+      .status.error { color: #9f3d2f; }
+      .status.success { color: var(--success); }
+      .dashboard { display: none; }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+      .stat {
+        padding: 18px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+      }
+      .stat strong { font-size: 1.8rem; display: block; }
+      .layout {
+        display: grid;
+        grid-template-columns: 1.3fr 0.7fr;
+        gap: 18px;
+      }
+      .panel { padding: 18px; margin-bottom: 18px; }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th, td {
+        text-align: left;
+        padding: 10px 8px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      .inline-form {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+      }
+      .btn-small {
+        border: 0;
+        background: var(--accent);
+        color: #fff;
+        border-radius: 999px;
+        padding: 8px 12px;
+        cursor: pointer;
+      }
+      .tag {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 4px 8px;
+        font-size: 12px;
+        background: #f1e5db;
+      }
+      @media (max-width: 860px) {
+        .layout { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="header">
+        <div class="brand">Kafe Lilim Staff</div>
+        <button class="logout-btn" id="logout-btn" type="button">Log out</button>
+      </header>
 
-const currency = new Intl.NumberFormat('en-PH', {
-  style: 'currency',
-  currency: 'PHP',
-  minimumFractionDigits: 0
-});
+      <section id="login-view" class="auth-card">
+        <h2>Staff passcode</h2>
+        <form id="login-form">
+          <div class="field">
+            <label for="passcode">Passcode</label>
+            <input id="passcode" type="password" autocomplete="current-password" placeholder="Enter passcode" required />
+          </div>
+          <button class="primary" type="submit">Sign in</button>
+          <div id="auth-status" class="status" aria-live="polite"></div>
+        </form>
+      </section>
 
-const menuGrid = document.getElementById('menu-grid');
-const categoryFilters = document.getElementById('category-filters');
-const reviewSummary = document.getElementById('review-summary');
-const menuSearch = document.getElementById('menu-search');
-const galleryGrid = document.getElementById('gallery-grid');
-const heroMessage = document.getElementById('hero-message');
-const storyText = document.getElementById('story-text');
-const contactLocation = document.getElementById('contact-location');
-const contactHours = document.getElementById('contact-hours');
-const contactDetails = document.getElementById('contact-details');
-const reviewForm = document.getElementById('review-form');
-const reviewMessage = document.getElementById('review-message');
-const publicCardId = document.getElementById('public-card-id');
-const stampCountEl = document.getElementById('stamp-count');
-const requiredStampsEl = document.getElementById('required-stamps');
-const rewardLabel = document.getElementById('reward-label');
-const progressFill = document.getElementById('progress-fill');
-const stampSlots = document.getElementById('stamp-slots');
-const cardIdInput = document.getElementById('card-id-input');
+      <section id="dashboard-view" class="dashboard">
+        <div class="stats-grid" id="stats-grid"></div>
 
-function formatPHP(value) {
-  return currency.format(Number(value || 0));
-}
+        <div class="layout">
+          <div>
+            <div class="panel">
+              <h3>Menu management</h3>
+              <form id="product-form" class="inline-form">
+                <div class="field">
+                  <label>Name</label>
+                  <input name="name" required />
+                </div>
+                <div class="field">
+                  <label>Description</label>
+                  <textarea name="description" rows="3"></textarea>
+                </div>
+                <div class="field">
+                  <label>Category</label>
+                  <select name="categoryId" id="product-category"></select>
+                </div>
+                <div class="field">
+                  <label>Price</label>
+                  <input name="price" type="number" min="0" step="1" required />
+                </div>
+                <button class="primary" type="submit">Add product</button>
+              </form>
+              <div id="product-status" class="status" aria-live="polite"></div>
+              <table>
+                <thead>
+                  <tr><th>Name</th><th>Price</th><th>Status</th></tr>
+                </thead>
+                <tbody id="products-body"></tbody>
+              </table>
+            </div>
 
-async function fetchJson(url, options = {}) {
-  const response = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-    ...options
-  });
-  const payload = await response.json();
-  if (!response.ok) {
-    throw new Error(payload.error || 'Request failed.');
-  }
-  return payload;
-}
+            <div class="panel">
+              <h3>Reviews</h3>
+              <div id="reviews-body"></div>
+            </div>
+          </div>
 
-function saveStoredCard(publicId) {
-  localStorage.setItem('kafeLilimCardId', publicId);
-}
+          <div>
+            <div class="panel">
+              <h3>Categories</h3>
+              <form id="category-form" class="inline-form">
+                <div class="field">
+                  <label>New category</label>
+                  <input name="name" required />
+                </div>
+                <button class="btn-small" type="submit">Add category</button>
+              </form>
+              <div id="category-status" class="status" aria-live="polite"></div>
+            </div>
 
-function getStoredCard() {
-  return localStorage.getItem('kafeLilimCardId') || '';
-}
+            <div class="panel">
+              <h3>Inventory</h3>
+              <div id="inventory-body"></div>
+            </div>
 
-function setCardState(card) {
-  state.loyalty = card;
-  if (card && card.publicId) {
-    publicCardId.textContent = card.publicId;
-    saveStoredCard(card.publicId);
-  }
-  const required = Number(card?.requiredStamps || 10);
-  const count = Number(card?.stampCount || 0);
-  requiredStampsEl.textContent = String(required);
-  stampCountEl.textContent = String(count);
-  const percent = Math.min((count / required) * 100, 100);
-  progressFill.style.width = `${percent}%`;
-  rewardLabel.innerHTML = `Reward: <strong>${card?.rewardDescription || 'Complimentary coffee or pastry'}</strong>`;
-  stampSlots.innerHTML = '';
-
-  for (let i = 0; i < required; i += 1) {
-    const slot = document.createElement('span');
-    slot.className = `stamp-slot ${i < count ? 'filled' : ''}`;
-    slot.setAttribute('aria-label', i < count ? 'Filled stamp' : 'Empty stamp');
-    slot.textContent = i < count ? '☕' : '○';
-    stampSlots.appendChild(slot);
-  }
-}
-
-async function loadSettings() {
-  const settings = await fetchJson('/api/settings/public');
-  state.settings = settings;
-  heroMessage.textContent = settings.heroMessage || 'Welcome to Kafe Lilim';
-  storyText.textContent = settings.story || 'A warm neighborhood cafe with everyday rituals and thoughtful coffee.';
-  contactLocation.textContent = settings.location || '[Editable location]';
-  contactHours.textContent = settings.openingHours || '[Editable opening hours]';
-  contactDetails.textContent = `${settings.contactPhone || '[Editable phone]'} • ${settings.contactEmail || '[Editable email]'}`;
-
-  const gallery = Array.isArray(settings.gallery) ? settings.gallery : [];
-  galleryGrid.innerHTML = gallery.map((item) => `
-    <img src="${item}" alt="Kafe Lilim interior or product" loading="lazy" />
-  `).join('');
-
-  const mapPlaceholder = document.getElementById('map-placeholder');
-  if (settings.mapEmbedUrl) {
-    mapPlaceholder.innerHTML = `<iframe src="${settings.mapEmbedUrl}" title="Cafe map" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>`;
-  }
-}
-
-async function loadMenu() {
-  const categories = await fetchJson('/api/categories');
-  const menu = await fetchJson('/api/menu');
-  state.categories = categories;
-  state.menu = menu;
-
-  const categoryButtons = [{ id: 'all', name: 'All' }, ...categories.map((cat) => ({ id: String(cat.id), name: cat.name }))];
-  categoryFilters.innerHTML = categoryButtons.map((cat) => `
-    <button type="button" class="filter-button ${state.activeCategory === cat.id ? 'active' : ''}" data-category="${cat.id}">${cat.name}</button>
-  `).join('');
-
-  categoryFilters.querySelectorAll('button').forEach((button) => {
-    button.addEventListener('click', () => {
-      state.activeCategory = button.dataset.category;
-      renderMenu();
-      categoryFilters.querySelectorAll('button').forEach((btn) => btn.classList.toggle('active', btn === button));
-    });
-  });
-
-  renderMenu();
-}
-
-function renderMenu() {
-  const term = state.searchTerm.trim().toLowerCase();
-  const filtered = state.menu.filter((item) => {
-    const categoryMatch = state.activeCategory === 'all' || String(item.category_id) === String(state.activeCategory);
-    const searchMatch = !term || `${item.name} ${item.description}`.toLowerCase().includes(term);
-    return categoryMatch && searchMatch;
-  });
-
-  menuGrid.innerHTML = filtered.map((item) => `
-    <article class="menu-card ${Number(item.available) === 0 || Number(item.sold_out) === 1 ? 'unavailable' : ''}" data-id="${item.id}">
-      <div class="card-image-wrap">
-        <img src="${item.image || 'https://images.unsplash.com/photo-1497636577773-f1231844b336?auto=format&fit=crop&w=1200&q=80'}" alt="${item.name}" loading="lazy" />
-        ${Number(item.featured) === 1 ? '<span class="tag">Featured</span>' : ''}
-        ${Number(item.sold_out) === 1 ? '<span class="tag sold-out">Sold out</span>' : ''}
-      </div>
-      <div class="card-copy">
-        <div class="menu-card-head">
-          <h3>${item.name}</h3>
-          <span class="price">${formatPHP(item.price)}</span>
+            <div class="panel">
+              <h3>Store settings</h3>
+              <form id="settings-form" class="inline-form">
+                <div class="field">
+                  <label>Hero message</label>
+                  <input name="heroMessage" />
+                </div>
+                <div class="field">
+                  <label>Story</label>
+                  <textarea name="story" rows="3"></textarea>
+                </div>
+                <div class="field">
+                  <label>Location</label>
+                  <input name="location" />
+                </div>
+                <div class="field">
+                  <label>Opening hours</label>
+                  <input name="openingHours" />
+                </div>
+                <div class="field">
+                  <label>Contact phone</label>
+                  <input name="contactPhone" />
+                </div>
+                <div class="field">
+                  <label>Contact email</label>
+                  <input name="contactEmail" />
+                </div>
+                <div class="field">
+                  <label>Loyalty required stamps</label>
+                  <input name="requiredStamps" type="number" min="1" />
+                </div>
+                <button class="btn-small" type="submit">Save</button>
+              </form>
+              <div id="settings-status" class="status" aria-live="polite"></div>
+            </div>
+          </div>
         </div>
-        <p class="category-label">${item.category_name || 'Menu item'}</p>
-        <p>${item.description || 'Freshly made and ready to enjoy.'}</p>
-        <div class="menu-status-line">
-          <span>${Number(item.available) === 0 || Number(item.sold_out) === 1 ? 'Unavailable' : 'Available'}</span>
-        </div>
-      </div>
-    </article>
-  `).join('') || '<p class="empty-state">No menu items match your search.</p>';
-}
-
-async function loadReviews() {
-  const data = await fetchJson('/api/reviews');
-  state.reviews = data.reviews;
-
-  const average = Number(data.averageRating || 0);
-  const total = Number(data.totalReviews || 0);
-  reviewSummary.innerHTML = `
-    <div class="rating-overview">
-      <div class="big-rating">${average.toFixed(1)}</div>
-      <div>
-        <div class="stars-row" aria-label="Average rating ${average} out of 5">${renderStars(average)}</div>
-        <p>${total} review${total === 1 ? '' : 's'}</p>
-      </div>
+      </section>
     </div>
-  `;
 
-  const list = document.createElement('div');
-  list.className = 'review-list';
-  if (!state.reviews.length) {
-    list.innerHTML = '<p class="empty-state">No reviews yet. Be the first to share your thoughts.</p>';
-  } else {
-    list.innerHTML = state.reviews.map((review) => `
-      <article class="review-item">
-        <div class="review-head">
-          <strong>${review.display_name || 'Anonymous'}</strong>
-          <span>${new Date(review.created_at).toLocaleDateString()}</span>
-        </div>
-        <div class="stars-row" aria-label="Rated ${review.rating} out of 5">${renderStars(review.rating)}</div>
-        <p>${review.comment}</p>
-      </article>
-    `).join('');
-  }
-  reviewSummary.appendChild(list);
-}
+    <script>
+      const state = { session: null, dashboard: null, products: [], inventory: [], reviews: [], categories: [], settings: null };
 
-function renderStars(value) {
-  const rounded = Math.round(Number(value || 0));
-  const stars = Array.from({ length: 5 }, (_, index) => index < rounded ? '★' : '☆').join('');
-  return `<span class="star-visual">${stars}</span>`;
-}
+      async function fetchJson(url, options = {}) {
+        const response = await fetch(url, {
+          ...options,
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(options.headers || {})
+          }
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload.error || 'Request failed.');
+        }
+        return payload;
+      }
 
-async function createCard() {
-  try {
-    const data = await fetchJson('/api/loyalty/cards', { method: 'POST' });
-    setCardState(data);
-  } catch (error) {
-    reviewMessage.textContent = error.message;
-  }
-}
+      function showMessage(el, msg, type = '') {
+        el.textContent = msg;
+        el.className = 'status';
+        if (type) el.classList.add(type);
+      }
 
-async function lookupCard(publicId) {
-  const value = publicId.trim();
-  if (!value) {
-    return;
-  }
-  try {
-    const card = await fetchJson(`/api/loyalty/cards/${encodeURIComponent(value)}`);
-    setCardState(card);
-  } catch (error) {
-    reviewMessage.textContent = error.message;
-  }
-}
+      function renderStats() {
+        const { counts } = state.dashboard || { counts: {} };
+        const items = [
+          ['Menu items', counts.menuCount || 0],
+          ['Available items', counts.availableItems || 0],
+          ['Low stock', counts.lowStock || 0],
+          ['Reviews', counts.reviewCount || 0],
+          ['Cards', counts.cardCount || 0],
+          ['Stamps issued', counts.totalStampsIssued || 0]
+        ];
 
-function hydrateSavedCard() {
-  const savedCard = getStoredCard();
-  if (savedCard) {
-    cardIdInput.value = savedCard;
-    lookupCard(savedCard);
-  }
-}
+        document.getElementById('stats-grid').innerHTML = items.map(([label, value]) => `
+          <div class="stat"><span>${label}</span><strong>${value}</strong></div>
+        `).join('');
+      }
 
-function bindEvents() {
-  menuSearch.addEventListener('input', (event) => {
-    state.searchTerm = event.target.value;
-    renderMenu();
-  });
+      function populateCategorySelect() {
+        const select = document.getElementById('product-category');
+        select.innerHTML = state.categories.map((cat) => `<option value="${cat.id}">${cat.name}</option>`).join('');
+      }
 
-  document.getElementById('create-card-btn').addEventListener('click', createCard);
-  document.getElementById('recover-card-btn').addEventListener('click', () => {
-    const saved = getStoredCard();
-    if (saved) {
-      lookupCard(saved);
-    } else {
-      reviewMessage.textContent = 'No saved card found on this device. Create a new card or enter a card ID.';
-    }
-  });
-  document.getElementById('lookup-card-btn').addEventListener('click', () => lookupCard(cardIdInput.value));
-  document.querySelector('.mobile-menu-toggle').addEventListener('click', () => {
-    const menu = document.getElementById('mobile-menu');
-    const expanded = menu.hidden;
-    menu.hidden = !expanded;
-    document.querySelector('.mobile-menu-toggle').setAttribute('aria-expanded', String(expanded));
-  });
+      function renderProducts() {
+        const body = document.getElementById('products-body');
+        body.innerHTML = state.products.map((product) => `
+          <tr>
+            <td>${product.name}</td>
+            <td>₱${Number(product.price).toLocaleString()}</td>
+            <td><span class="tag">${product.available ? 'Available' : 'Hidden'}</span></td>
+          </tr>
+        `).join('');
+      }
 
-  reviewForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const checked = [...document.querySelectorAll('input[name="rating"]:checked')][0];
-    const rating = checked ? Number(checked.value) : 0;
-    const comment = document.getElementById('review-text').value.trim();
-    const displayName = document.getElementById('review-name').value.trim();
+      function renderInventory() {
+        const body = document.getElementById('inventory-body');
+        body.innerHTML = state.inventory.map((item) => `
+          <div style="margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--line);">
+            <strong>${item.name}</strong><br>
+            <small>${item.quantity} ${item.unit || ''} • ${item.status}</small>
+          </div>
+        `).join('');
+      }
 
-    if (!rating) {
-      reviewMessage.textContent = 'Please choose a rating before submitting.';
-      return;
-    }
+      function renderReviews() {
+        const body = document.getElementById('reviews-body');
+        body.innerHTML = state.reviews.map((review) => `
+          <div style="padding:10px 0;border-bottom:1px solid var(--line);">
+            <strong>${review.display_name || 'Anonymous'}</strong>
+            <div>${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}</div>
+            <p>${review.comment}</p>
+            <div style="display:flex;gap:8px;">
+              <button class="btn-small" type="button" data-review-id="${review.id}" data-approved="1">Approve</button>
+              <button class="btn-small" type="button" data-review-id="${review.id}" data-approved="0">Hide</button>
+            </div>
+          </div>
+        `).join('');
 
-    try {
-      await fetchJson('/api/reviews', {
-        method: 'POST',
-        body: JSON.stringify({ rating, displayName, comment }),
-        headers: { 'Content-Type': 'application/json' }
+        body.querySelectorAll('button[data-review-id]').forEach((button) => {
+          button.addEventListener('click', async () => {
+            const reviewId = Number(button.dataset.reviewId);
+            await fetchJson(`/api/staff/reviews/${reviewId}`, {
+              method: 'PATCH',
+              body: JSON.stringify({ approved: Number(button.dataset.approved), hidden: Number(button.dataset.approved) === 0 ? 1 : 0 })
+            });
+            await loadStaffData();
+          });
+        });
+      }
+
+      async function loadStaffData() {
+        const [dashboard, products, inventory, reviews, categories, settings] = await Promise.all([
+          fetchJson('/api/staff/dashboard'),
+          fetchJson('/api/staff/products'),
+          fetchJson('/api/staff/inventory'),
+          fetchJson('/api/staff/reviews'),
+          fetchJson('/api/staff/categories'),
+          fetchJson('/api/staff/settings')
+        ]);
+
+        state.dashboard = dashboard;
+        state.products = products;
+        state.inventory = inventory;
+        state.reviews = reviews;
+        state.categories = categories;
+        state.settings = settings;
+
+        renderStats();
+        populateCategorySelect();
+        renderProducts();
+        renderInventory();
+        renderReviews();
+        fillSettingsForm();
+      }
+
+      function fillSettingsForm() {
+        const settings = state.settings || { settings: {}, loyalty: {} };
+        const form = document.getElementById('settings-form');
+        form.heroMessage.value = settings.settings.heroMessage || '';
+        form.story.value = settings.settings.story || '';
+        form.location.value = settings.settings.location || '';
+        form.openingHours.value = settings.settings.openingHours || '';
+        form.contactPhone.value = settings.settings.contactPhone || '';
+        form.contactEmail.value = settings.settings.contactEmail || '';
+        form.requiredStamps.value = settings.loyalty.requiredStamps || 10;
+      }
+
+      async function checkSession() {
+        try {
+          const session = await fetchJson('/api/staff/session');
+          state.session = session;
+          if (session.authenticated) {
+            document.getElementById('login-view').style.display = 'none';
+            document.getElementById('dashboard-view').style.display = 'block';
+            document.getElementById('logout-btn').style.display = 'inline-block';
+            await loadStaffData();
+          } else {
+            document.getElementById('login-view').style.display = 'block';
+            document.getElementById('dashboard-view').style.display = 'none';
+            document.getElementById('logout-btn').style.display = 'none';
+          }
+        } catch (error) {
+          showMessage(document.getElementById('auth-status'), error.message, 'error');
+        }
+      }
+
+      document.getElementById('login-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const passcode = document.getElementById('passcode').value.trim();
+        try {
+          await fetchJson('/api/staff/session', {
+            method: 'POST',
+            body: JSON.stringify({ passcode })
+          });
+          showMessage(document.getElementById('auth-status'), 'Signed in successfully.', 'success');
+          await checkSession();
+        } catch (error) {
+          showMessage(document.getElementById('auth-status'), error.message, 'error');
+        }
       });
-      reviewForm.reset();
-      reviewMessage.textContent = 'Review submitted successfully.';
-      reviewMessage.classList.add('success');
-      await loadReviews();
-    } catch (error) {
-      reviewMessage.textContent = error.message;
-      reviewMessage.classList.remove('success');
-    }
-  });
 
-  document.getElementById('year').textContent = new Date().getFullYear();
-}
+      document.getElementById('logout-btn').addEventListener('click', async () => {
+        await fetchJson('/api/staff/session', { method: 'DELETE' });
+        await checkSession();
+      });
 
-async function init() {
-  bindEvents();
-  await loadSettings();
-  await loadMenu();
-  await loadReviews();
-  hydrateSavedCard();
-}
+      document.getElementById('product-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const data = Object.fromEntries(new FormData(form).entries());
+        try {
+          await fetchJson('/api/staff/products', {
+            method: 'POST',
+            body: JSON.stringify({
+              name: data.name,
+              description: data.description,
+              categoryId: Number(data.categoryId),
+              price: Number(data.price),
+              visible: 1,
+              available: 1,
+              soldOut: 0,
+              featured: 0
+            })
+          });
+          form.reset();
+          showMessage(document.getElementById('product-status'), 'Product added.', 'success');
+          await loadStaffData();
+        } catch (error) {
+          showMessage(document.getElementById('product-status'), error.message, 'error');
+        }
+      });
 
-init();
+      document.getElementById('category-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const name = new FormData(event.currentTarget).get('name');
+        try {
+          await fetchJson('/api/staff/categories', {
+            method: 'POST',
+            body: JSON.stringify({ name })
+          });
+          event.currentTarget.reset();
+          showMessage(document.getElementById('category-status'), 'Category added.', 'success');
+          await loadStaffData();
+        } catch (error) {
+          showMessage(document.getElementById('category-status'), error.message, 'error');
+        }
+      });
+
+      document.getElementById('settings-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const payload = {
+          site: {
+            heroMessage: form.heroMessage.value,
+            story: form.story.value,
+            location: form.location.value,
+            openingHours: form.openingHours.value,
+            contactPhone: form.contactPhone.value,
+            contactEmail: form.contactEmail.value
+          },
+          loyalty: {
+            requiredStamps: Number(form.requiredStamps.value || 10)
+          }
+        };
+
+        try {
+          await fetchJson('/api/staff/settings', {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+          });
+          showMessage(document.getElementById('settings-status'), 'Settings saved.', 'success');
+          await loadStaffData();
+        } catch (error) {
+          showMessage(document.getElementById('settings-status'), error.message, 'error');
+        }
+      });
+
+      checkSession();
+    </script>
+  </body>
+</html>

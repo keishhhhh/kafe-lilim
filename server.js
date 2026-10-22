@@ -2,7 +2,6 @@ const express = require('express');
 const session = require('express-session');
 const sqlite = require('better-sqlite3');
 const helmet = require('helmet');
-const csrf = require('csurf');
 const crypto = require('crypto');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
@@ -45,17 +44,13 @@ function parseStaffAccounts() {
 }
 
 function getSharedStaffUser() {
-  const expectedHash = hashValue(STAFF_PASSCODE);
-  return { name: 'Shared staff passcode', role: 'owner', passcodeHash: expectedHash };
+  return { name: 'Shared staff passcode', role: 'owner', passcodeHash: hashValue(STAFF_PASSCODE) };
 }
 
 function resolveStaffCredential(passcode) {
   const accounts = parseStaffAccounts();
   if (accounts.length > 0) {
-    const matched = accounts.find((record) => {
-      if (!record || !record.passcode) return false;
-      return hashValue(String(record.passcode)) === hashValue(String(passcode));
-    });
+    const matched = accounts.find((record) => record && record.passcode && hashValue(String(record.passcode)) === hashValue(String(passcode)));
     if (matched) {
       return {
         name: matched.name || 'Staff member',
@@ -131,38 +126,8 @@ function emitPublicMenuProducts() {
   `).all();
 }
 
-function requireStaffAuth(req, res, next) {
-  if (!req.session || !req.session.staff || !req.session.staff.role) {
-    return res.status(401).json({ error: 'Unauthorized. Staff authentication required.' });
-  }
-  return next();
-}
-
-function requireRole(roles) {
-  return (req, res, next) => {
-    if (!req.session || !req.session.staff) {
-      return res.status(401).json({ error: 'Unauthorized. Staff authentication required.' });
-    }
-    if (!roles.includes(req.session.staff.role)) {
-      return res.status(403).json({ error: 'Forbidden. Insufficient permissions.' });
-    }
-    return next();
-  };
-}
-
-function canManageProduct(role, mode = 'edit') {
-  if (role === 'owner') return true;
-  if (role === 'admin') return mode !== 'owner_only';
-  if (role === 'employee') return mode === 'availability' || mode === 'view';
-  return false;
-}
-
 function sanitizeText(value, fallback = '') {
   return String(value ?? fallback).trim();
-}
-
-function isAllowedRole(value) {
-  return ['owner', 'admin', 'employee'].includes(value);
 }
 
 function createCardPublicId() {
@@ -293,8 +258,7 @@ function initDatabase() {
   if (categoryCount === 0) {
     const now = new Date().toISOString();
     const coffee = db.prepare(`INSERT INTO categories (name, created_at, updated_at) VALUES (?, ?, ?)`).run('Coffee', now, now);
-    const ncd = db.prepare(`INSERT INTO categories (name, created_at, updated_at) VALUES (?, ?, ?)`).run('Non-coffee drinks', now, now);
-    const tea = db.prepare(`INSERT INTO categories (name, created_at, updated_at) VALUES (?, ?, ?)`).run('Tea', now, now);
+    const nd = db.prepare(`INSERT INTO categories (name, created_at, updated_at) VALUES (?, ?, ?)`).run('Non-coffee drinks', now, now);
     const specialty = db.prepare(`INSERT INTO categories (name, created_at, updated_at) VALUES (?, ?, ?)`).run('Specialty drinks', now, now);
     const snacks = db.prepare(`INSERT INTO categories (name, created_at, updated_at) VALUES (?, ?, ?)`).run('Snacks', now, now);
     const pastries = db.prepare(`INSERT INTO categories (name, created_at, updated_at) VALUES (?, ?, ?)`).run('Pastries', now, now);
@@ -306,7 +270,7 @@ function initDatabase() {
       'Cappuccino', 'Balanced espresso and foam with mild chocolate dusting.', coffee.lastInsertRowid, 140, 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=80', 1, 1, 0, 0, 2, 0, now, now
     );
     db.prepare(`INSERT INTO products (name, description, category_id, price, image, visible, available, sold_out, featured, sort_order, archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
-      'Iced Hibiscus', 'Refreshing floral tea with citrus sparkle.', ncd.lastInsertRowid, 110, 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&w=900&q=80', 1, 1, 0, 0, 3, 0, now, now
+      'Iced Hibiscus', 'Refreshing floral tea with citrus sparkle.', nd.lastInsertRowid, 110, 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&w=900&q=80', 1, 1, 0, 0, 3, 0, now, now
     );
     db.prepare(`INSERT INTO products (name, description, category_id, price, image, visible, available, sold_out, featured, sort_order, archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
       'Matcha Cloud', 'Ceremonial matcha with oat milk and a soft vanilla finish.', specialty.lastInsertRowid, 170, 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?auto=format&fit=crop&w=900&q=80', 1, 1, 0, 1, 4, 0, now, now
@@ -358,14 +322,6 @@ const sessionOptions = {
 
 app.use(session(sessionOptions));
 
-const csrfProtection = csrf({ cookie: true });
-app.use((req, res, next) => {
-  if (req.path.startsWith('/api/staff/') && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
-    return csrfProtection(req, res, next);
-  }
-  return next();
-});
-
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -374,9 +330,12 @@ const loginLimiter = rateLimit({
   legacyHeaders: false
 });
 
-app.get('/api/staff/csrf-token', requireStaffAuth, (req, res) => {
-  res.json({ csrfToken: req.csrfToken ? req.csrfToken() : '' });
-});
+function requireStaffAuth(req, res, next) {
+  if (!req.session || !req.session.staff || !req.session.staff.role) {
+    return res.status(401).json({ error: 'Unauthorized. Staff authentication required.' });
+  }
+  return next();
+}
 
 app.post('/api/staff/session', loginLimiter, (req, res) => {
   const passcode = sanitizeText(req.body.passcode || '', '');
@@ -396,7 +355,6 @@ app.post('/api/staff/session', loginLimiter, (req, res) => {
     sessionId: crypto.randomBytes(12).toString('hex'),
     authenticatedAt: new Date().toISOString()
   };
-
   req.session.cookie.maxAge = SESSION_TTL_MS;
 
   logAudit(staffUser.name, 'login_success', 'staff_session', req.session.staff.sessionId, { role: staffUser.role });
@@ -428,8 +386,13 @@ app.get('/api/categories', (req, res) => {
 });
 
 app.get('/api/menu', (req, res) => {
-  const rows = emitPublicMenuProducts();
-  res.json(rows);
+  res.json(db.prepare(`
+    SELECT p.*, c.name as category_name
+    FROM products p
+    LEFT JOIN categories c ON c.id = p.category_id
+    WHERE p.archived = 0 AND p.visible = 1
+    ORDER BY p.sort_order ASC, p.id ASC
+  `).all());
 });
 
 app.get('/api/reviews', (req, res) => {
@@ -457,13 +420,7 @@ app.post('/api/reviews', (req, res) => {
     return res.status(400).json({ error: 'Review text is too long.' });
   }
 
-  const sanitizedComment = comment.replace(/[<>]/g, '');
-  const stmt = db.prepare(`
-    INSERT INTO reviews (rating, display_name, comment, approved, hidden, created_at)
-    VALUES (?, ?, ?, 1, 0, ?)
-  `);
-  stmt.run(rating, displayName.slice(0, 50), sanitizedComment, new Date().toISOString());
-
+  db.prepare(`INSERT INTO reviews (rating, display_name, comment, approved, hidden, created_at) VALUES (?, ?, ?, 1, 0, ?)`).run(rating, displayName.slice(0, 50), comment.replace(/[<>]/g, ''), new Date().toISOString());
   logAudit('customer', 'review_added', 'reviews', 'new', { rating, displayName });
   res.status(201).json({ success: true, message: 'Review submitted.' });
 });
@@ -472,9 +429,8 @@ app.post('/api/loyalty/cards', (req, res) => {
   const publicId = createCardPublicId();
   const createdAt = new Date().toISOString();
   const result = db.prepare(`INSERT INTO loyalty_cards (public_id, stamp_count, redeemed_count, created_at, updated_at) VALUES (?, 0, 0, ?, ?)`).run(publicId, createdAt, createdAt);
-
   logAudit('customer', 'loyalty_card_created', 'loyalty_cards', String(result.lastInsertRowid), { publicId });
-  res.status(201).json({ publicId, stampCount: 0, requiredStamps: getLoyaltyConfig().requiredStamps || 10 });
+  res.status(201).json({ publicId, stampCount: 0, requiredStamps: getLoyaltyConfig().requiredStamps || 10, rewardDescription: getLoyaltyConfig().rewardDescription });
 });
 
 app.get('/api/loyalty/cards/:publicId', (req, res) => {
@@ -486,7 +442,6 @@ app.get('/api/loyalty/cards/:publicId', (req, res) => {
 
   const config = getLoyaltyConfig();
   const transactions = db.prepare(`SELECT * FROM loyalty_transactions WHERE card_id = ? ORDER BY created_at DESC LIMIT 20`).all(card.id);
-
   res.json({
     publicId: card.public_id,
     stampCount: Number(card.stamp_count),
@@ -500,7 +455,6 @@ app.get('/api/loyalty/cards/:publicId', (req, res) => {
 app.get('/api/staff/dashboard', requireStaffAuth, (req, res) => {
   const menuCount = db.prepare(`SELECT COUNT(*) as count FROM products WHERE archived = 0`).get().count;
   const availableItems = db.prepare(`SELECT COUNT(*) as count FROM products WHERE archived = 0 AND available = 1 AND visible = 1`).get().count;
-  const unavailableItems = db.prepare(`SELECT COUNT(*) as count FROM products WHERE archived = 0 AND (available = 0 OR visible = 0)`).get().count;
   const lowStock = db.prepare(`SELECT COUNT(*) as count FROM inventory WHERE quantity <= low_stock_threshold`).get().count;
   const reviewCount = db.prepare(`SELECT COUNT(*) as count FROM reviews`).get().count;
   const avgRating = db.prepare(`SELECT ROUND(COALESCE(AVG(rating),0),1) as average FROM reviews`).get().average;
@@ -508,16 +462,10 @@ app.get('/api/staff/dashboard', requireStaffAuth, (req, res) => {
   const totalStampsIssued = db.prepare(`SELECT COALESCE(SUM(delta), 0) as total FROM loyalty_transactions WHERE type = 'earned'`).get().total;
   const totalStampsRedeemed = db.prepare(`SELECT COALESCE(SUM(delta), 0) as total FROM loyalty_transactions WHERE type = 'redeemed'`).get().total;
 
-  const recentMenu = db.prepare(`SELECT * FROM products WHERE archived = 0 ORDER BY updated_at DESC LIMIT 5`).all();
-  const recentInventory = db.prepare(`SELECT * FROM inventory ORDER BY last_updated DESC LIMIT 5`).all();
-  const recentLoyalty = db.prepare(`SELECT * FROM loyalty_transactions ORDER BY created_at DESC LIMIT 5`).all();
-  const recentAudit = db.prepare(`SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 6`).all();
-
   res.json({
     counts: {
       menuCount,
       availableItems,
-      unavailableItems,
       lowStock,
       reviewCount,
       avgRating: Number(avgRating),
@@ -525,49 +473,40 @@ app.get('/api/staff/dashboard', requireStaffAuth, (req, res) => {
       totalStampsIssued: Number(totalStampsIssued),
       totalStampsRedeemed: Number(totalStampsRedeemed)
     },
-    recentMenu,
-    recentInventory,
-    recentLoyalty,
-    recentAudit
+    recentMenu: db.prepare(`SELECT * FROM products WHERE archived = 0 ORDER BY updated_at DESC LIMIT 5`).all(),
+    recentInventory: db.prepare(`SELECT * FROM inventory ORDER BY last_updated DESC LIMIT 5`).all(),
+    recentLoyalty: db.prepare(`SELECT * FROM loyalty_transactions ORDER BY created_at DESC LIMIT 5`).all(),
+    recentAudit: db.prepare(`SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 6`).all()
   });
 });
 
 app.get('/api/staff/products', requireStaffAuth, (req, res) => {
-  const rows = db.prepare(`
+  res.json(db.prepare(`
     SELECT p.*, c.name as category_name
     FROM products p
     LEFT JOIN categories c ON c.id = p.category_id
     ORDER BY p.sort_order ASC, p.id ASC
-  `).all();
-  res.json(rows);
+  `).all());
 });
 
 app.post('/api/staff/products', requireStaffAuth, (req, res) => {
   const role = req.session.staff.role;
-  if (!canManageProduct(role, 'create')) {
-    return res.status(403).json({ error: 'Employees cannot create products.' });
+  if (!['owner', 'admin', 'employee'].includes(role)) {
+    return res.status(403).json({ error: 'Unauthorized' });
   }
 
   const name = sanitizeText(req.body.name || '', '');
   const description = sanitizeText(req.body.description || '', '');
   const categoryId = Number(req.body.categoryId || 0);
   const price = Number(req.body.price || 0);
-  const image = sanitizeText(req.body.image || '', '');
-  const visible = Number(req.body.visible ?? 1) === 1 ? 1 : 0;
-  const available = Number(req.body.available ?? 1) === 1 ? 1 : 0;
-  const soldOut = Number(req.body.soldOut ?? 0) === 1 ? 1 : 0;
-  const featured = Number(req.body.featured ?? 0) === 1 ? 1 : 0;
-  const sortOrder = Number(req.body.sortOrder || 0);
-
   if (!name) return res.status(400).json({ error: 'Product name is required.' });
-  if (!Number.isFinite(price) || price < 0) return res.status(400).json({ error: 'Price must be a valid non-negative number.' });
   if (!categoryId || !db.prepare(`SELECT id FROM categories WHERE id = ?`).get(categoryId)) return res.status(400).json({ error: 'Category not found.' });
+  if (!Number.isFinite(price) || price < 0) return res.status(400).json({ error: 'Price must be a valid non-negative number.' });
 
   const now = new Date().toISOString();
-  const result = db.prepare(`
-    INSERT INTO products (name, description, category_id, price, image, visible, available, sold_out, featured, sort_order, archived, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
-  `).run(name, description, categoryId, price, image || '', visible, available, soldOut, featured, sortOrder, now, now);
+  const result = db.prepare(`INSERT INTO products (name, description, category_id, price, image, visible, available, sold_out, featured, sort_order, archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`).run(
+    name, description, categoryId, price, sanitizeText(req.body.image || '', ''), Number(req.body.visible ?? 1), Number(req.body.available ?? 1), Number(req.body.soldOut ?? 0), Number(req.body.featured ?? 0), Number(req.body.sortOrder || 0), now, now
+  );
 
   logAudit(req.session.staff.name, 'product_created', 'products', String(result.lastInsertRowid), { name, price, categoryId });
   res.status(201).json({ success: true, id: result.lastInsertRowid });
@@ -578,88 +517,40 @@ app.patch('/api/staff/products/:id', requireStaffAuth, (req, res) => {
   const product = db.prepare(`SELECT * FROM products WHERE id = ?`).get(id);
   if (!product) return res.status(404).json({ error: 'Product not found.' });
 
-  const role = req.session.staff.role;
-  const payload = req.body || {};
-  const allowedKeys = ['name', 'description', 'categoryId', 'price', 'image', 'visible', 'available', 'soldOut', 'featured', 'sortOrder'];
-  const updates = {};
+  const nextName = sanitizeText(req.body.name || product.name, product.name);
+  const nextDescription = sanitizeText(req.body.description || product.description || '', product.description || '');
+  const nextCategoryId = Number(req.body.categoryId ?? product.category_id);
+  const nextPrice = Number(req.body.price ?? product.price);
+  const nextVisible = Number(req.body.visible ?? product.visible) === 1 ? 1 : 0;
+  const nextAvailable = Number(req.body.available ?? product.available) === 1 ? 1 : 0;
+  const nextSoldOut = Number(req.body.soldOut ?? product.sold_out) === 1 ? 1 : 0;
+  const nextFeatured = Number(req.body.featured ?? product.featured) === 1 ? 1 : 0;
+  const nextSortOrder = Number(req.body.sortOrder ?? product.sort_order);
+  const nextImage = sanitizeText(req.body.image || product.image || '', product.image || '');
+  const updatedAt = new Date().toISOString();
 
-  if (role === 'employee') {
-    const employeeAllowed = ['visible', 'available', 'soldOut', 'featured'];
-    const keys = Object.keys(payload).filter((key) => allowedKeys.includes(key));
-    for (const key of keys) {
-      if (!employeeAllowed.includes(key)) {
-        return res.status(403).json({ error: 'Employees cannot edit that product field.' });
-      }
-    }
-  }
+  db.prepare(`UPDATE products SET name = ?, description = ?, category_id = ?, price = ?, image = ?, visible = ?, available = ?, sold_out = ?, featured = ?, sort_order = ?, updated_at = ? WHERE id = ?`).run(
+    nextName, nextDescription, nextCategoryId, nextPrice, nextImage, nextVisible, nextAvailable, nextSoldOut, nextFeatured, nextSortOrder, updatedAt, id
+  );
 
-  for (const key of allowedKeys) {
-    if (payload[key] === undefined) continue;
-    updates[key] = payload[key];
-  }
-
-  if (updates.price !== undefined) {
-    const nextPrice = Number(updates.price);
-    if (!Number.isFinite(nextPrice) || nextPrice < 0) {
-      return res.status(400).json({ error: 'Price must be a valid non-negative number.' });
-    }
-  }
-
-  if (updates.categoryId !== undefined) {
-    const categoryId = Number(updates.categoryId);
-    if (!db.prepare(`SELECT id FROM categories WHERE id = ?`).get(categoryId)) {
-      return res.status(400).json({ error: 'Category not found.' });
-    }
-  }
-
-  const nextName = updates.name !== undefined ? sanitizeText(updates.name, product.name) : product.name;
-  const nextDescription = updates.description !== undefined ? sanitizeText(updates.description, product.description || '') : product.description || '';
-  const nextCategoryId = updates.categoryId !== undefined ? Number(updates.categoryId) : product.category_id;
-  const nextPrice = updates.price !== undefined ? Number(updates.price) : product.price;
-  const nextImage = updates.image !== undefined ? sanitizeText(updates.image, product.image || '') : product.image || '';
-  const nextVisible = updates.visible !== undefined ? (Number(updates.visible) === 1 ? 1 : 0) : product.visible;
-  const nextAvailable = updates.available !== undefined ? (Number(updates.available) === 1 ? 1 : 0) : product.available;
-  const nextSoldOut = updates.soldOut !== undefined ? (Number(updates.soldOut) === 1 ? 1 : 0) : product.sold_out;
-  const nextFeatured = updates.featured !== undefined ? (Number(updates.featured) === 1 ? 1 : 0) : product.featured;
-  const nextSortOrder = updates.sortOrder !== undefined ? Number(updates.sortOrder || 0) : product.sort_order;
-  const nextUpdatedAt = new Date().toISOString();
-
-  db.prepare(`
-    UPDATE products
-    SET name = ?, description = ?, category_id = ?, price = ?, image = ?, visible = ?, available = ?, sold_out = ?, featured = ?, sort_order = ?, updated_at = ?
-    WHERE id = ?
-  `).run(nextName, nextDescription, nextCategoryId, nextPrice, nextImage, nextVisible, nextAvailable, nextSoldOut, nextFeatured, nextSortOrder, nextUpdatedAt, id);
-
-  logAudit(req.session.staff.name, 'product_updated', 'products', String(id), { before: { name: product.name, price: product.price }, after: { name: nextName, price: nextPrice } });
+  logAudit(req.session.staff.name, 'product_updated', 'products', String(id), { name: nextName, price: nextPrice });
   res.json({ success: true, message: 'Product updated.' });
 });
 
 app.delete('/api/staff/products/:id', requireStaffAuth, (req, res) => {
-  const role = req.session.staff.role;
-  if (!canManageProduct(role, 'delete')) {
-    return res.status(403).json({ error: 'You do not have permission to delete products.' });
-  }
-
   const id = Number(req.params.id);
   const product = db.prepare(`SELECT * FROM products WHERE id = ?`).get(id);
   if (!product) return res.status(404).json({ error: 'Product not found.' });
-
   db.prepare(`UPDATE products SET archived = 1, updated_at = ? WHERE id = ?`).run(new Date().toISOString(), id);
   logAudit(req.session.staff.name, 'product_archived', 'products', String(id), { name: product.name });
   res.json({ success: true, message: 'Product archived.' });
 });
 
 app.get('/api/staff/categories', requireStaffAuth, (req, res) => {
-  const rows = db.prepare(`SELECT * FROM categories ORDER BY id ASC`).all();
-  res.json(rows);
+  res.json(db.prepare(`SELECT * FROM categories ORDER BY id ASC`).all());
 });
 
 app.post('/api/staff/categories', requireStaffAuth, (req, res) => {
-  const role = req.session.staff.role;
-  if (!canManageProduct(role, 'create')) {
-    return res.status(403).json({ error: 'You do not have permission to create categories.' });
-  }
-
   const name = sanitizeText(req.body.name || '', '');
   if (!name) return res.status(400).json({ error: 'Category name is required.' });
 
@@ -669,33 +560,11 @@ app.post('/api/staff/categories', requireStaffAuth, (req, res) => {
   res.status(201).json({ success: true, id: result.lastInsertRowid, name });
 });
 
-app.patch('/api/staff/categories/:id', requireStaffAuth, (req, res) => {
-  const id = Number(req.params.id);
-  const role = req.session.staff.role;
-  if (!canManageProduct(role, 'edit')) {
-    return res.status(403).json({ error: 'You do not have permission to update categories.' });
-  }
-
-  const category = db.prepare(`SELECT * FROM categories WHERE id = ?`).get(id);
-  if (!category) return res.status(404).json({ error: 'Category not found.' });
-
-  const name = sanitizeText(req.body.name || '', category.name);
-  db.prepare(`UPDATE categories SET name = ?, updated_at = ? WHERE id = ?`).run(name, new Date().toISOString(), id);
-  logAudit(req.session.staff.name, 'category_updated', 'categories', String(id), { before: category.name, after: name });
-  res.json({ success: true, message: 'Category updated.' });
-});
-
 app.get('/api/staff/inventory', requireStaffAuth, (req, res) => {
-  const rows = db.prepare(`SELECT * FROM inventory ORDER BY last_updated DESC`).all();
-  res.json(rows);
+  res.json(db.prepare(`SELECT * FROM inventory ORDER BY last_updated DESC`).all());
 });
 
 app.patch('/api/staff/inventory/:id', requireStaffAuth, (req, res) => {
-  const role = req.session.staff.role;
-  if (!['owner', 'admin', 'employee'].includes(role)) {
-    return res.status(403).json({ error: 'Insufficient permissions.' });
-  }
-
   const id = Number(req.params.id);
   const item = db.prepare(`SELECT * FROM inventory WHERE id = ?`).get(id);
   if (!item) return res.status(404).json({ error: 'Inventory item not found.' });
@@ -705,105 +574,29 @@ app.patch('/api/staff/inventory/:id', requireStaffAuth, (req, res) => {
   const status = sanitizeText(req.body.status || item.status, item.status);
   const updatedAt = new Date().toISOString();
 
-  if (!Number.isFinite(quantity) || quantity < 0) {
-    return res.status(400).json({ error: 'Quantity must be a non-negative number.' });
-  }
-
   db.prepare(`UPDATE inventory SET quantity = ?, low_stock_threshold = ?, status = ?, last_updated = ? WHERE id = ?`).run(quantity, lowStockThreshold, status, updatedAt, id);
   logAudit(req.session.staff.name, 'inventory_updated', 'inventory', String(id), { before: item.quantity, after: quantity });
   res.json({ success: true, message: 'Inventory updated.' });
 });
 
-app.post('/api/staff/loyalty/stamps', requireStaffAuth, (req, res) => {
-  const role = req.session.staff.role;
-  if (!['owner', 'admin', 'employee'].includes(role)) {
-    return res.status(403).json({ error: 'You are not authorized to issue stamps.' });
-  }
-
-  const publicId = sanitizeText(req.body.publicId || '', '');
-  const delta = Number(req.body.delta || 1);
-  const reason = sanitizeText(req.body.reason || 'Stamped by staff', 'Stamped by staff');
-
-  if (!publicId) return res.status(400).json({ error: 'A loyalty card ID is required.' });
-  if (!Number.isInteger(delta) || delta < 1) return res.status(400).json({ error: 'Stamp delta must be a positive integer.' });
-
-  const card = db.prepare(`SELECT * FROM loyalty_cards WHERE public_id = ?`).get(publicId);
-  if (!card) return res.status(404).json({ error: 'Loyalty card not found.' });
-
-  const nextCount = Number(card.stamp_count) + delta;
-  const updatedAt = new Date().toISOString();
-  db.prepare(`UPDATE loyalty_cards SET stamp_count = ?, updated_at = ? WHERE id = ?`).run(nextCount, updatedAt, card.id);
-  db.prepare(`INSERT INTO loyalty_transactions (card_id, type, delta, reason, actor, created_at) VALUES (?, 'earned', ?, ?, ?, ?)`).run(card.id, delta, reason, req.session.staff.name, updatedAt);
-
-  logAudit(req.session.staff.name, 'stamps_issued', 'loyalty_cards', String(card.id), { publicId, delta, newTotal: nextCount });
-  res.json({ success: true, stampCount: nextCount, publicId });
-});
-
-app.post('/api/staff/loyalty/redeem', requireStaffAuth, (req, res) => {
-  const role = req.session.staff.role;
-  if (!['owner', 'admin', 'employee'].includes(role)) {
-    return res.status(403).json({ error: 'You are not authorized to redeem rewards.' });
-  }
-
-  const publicId = sanitizeText(req.body.publicId || '', '');
-  const card = db.prepare(`SELECT * FROM loyalty_cards WHERE public_id = ?`).get(publicId);
-  if (!card) return res.status(404).json({ error: 'Loyalty card not found.' });
-
-  const config = getLoyaltyConfig();
-  const required = Number(config.requiredStamps || 10);
-  if (Number(card.stamp_count) < required) {
-    return res.status(400).json({ error: `This card needs ${required} stamps before a reward can be redeemed.` });
-  }
-
-  const nextCount = Number(card.stamp_count) - required;
-  const newRedeemedCount = Number(card.redeemed_count) + 1;
-  const updatedAt = new Date().toISOString();
-
-  db.prepare(`UPDATE loyalty_cards SET stamp_count = ?, redeemed_count = ?, updated_at = ?, last_reward_at = ? WHERE id = ?`).run(nextCount, newRedeemedCount, updatedAt, updatedAt, card.id);
-  db.prepare(`INSERT INTO loyalty_transactions (card_id, type, delta, reason, actor, created_at) VALUES (?, 'redeemed', ?, ?, ?, ?)`).run(card.id, -required, config.rewardDescription, req.session.staff.name, updatedAt);
-  logAudit(req.session.staff.name, 'reward_redeemed', 'loyalty_cards', String(card.id), { publicId, required, remaining: nextCount });
-  res.json({ success: true, remaining: nextCount, rewardRedeemed: newRedeemedCount });
-});
-
 app.get('/api/staff/reviews', requireStaffAuth, (req, res) => {
-  const rows = db.prepare(`SELECT * FROM reviews ORDER BY created_at DESC`).all();
-  res.json(rows);
+  res.json(db.prepare(`SELECT * FROM reviews ORDER BY created_at DESC`).all());
 });
 
 app.patch('/api/staff/reviews/:id', requireStaffAuth, (req, res) => {
-  const role = req.session.staff.role;
-  if (!['owner', 'admin', 'employee'].includes(role)) {
-    return res.status(403).json({ error: 'Permission denied.' });
-  }
-
   const id = Number(req.params.id);
   const review = db.prepare(`SELECT * FROM reviews WHERE id = ?`).get(id);
   if (!review) return res.status(404).json({ error: 'Review not found.' });
 
   const approved = Number(req.body.approved ?? review.approved) === 1 ? 1 : 0;
   const hidden = Number(req.body.hidden ?? review.hidden) === 1 ? 1 : 0;
-
   db.prepare(`UPDATE reviews SET approved = ?, hidden = ? WHERE id = ?`).run(approved, hidden, id);
   logAudit(req.session.staff.name, 'review_moderated', 'reviews', String(id), { approved, hidden });
   res.json({ success: true, message: 'Review moderation updated.' });
 });
 
-app.get('/api/staff/audit-logs', requireStaffAuth, (req, res) => {
-  if (!['owner', 'admin'].includes(req.session.staff.role)) {
-    return res.status(403).json({ error: 'Only owner and admin can view audit logs.' });
-  }
-  const rows = db.prepare(`SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 50`).all();
-  res.json(rows);
-});
-
 app.get('/api/staff/settings', requireStaffAuth, (req, res) => {
-  if (!['owner', 'admin'].includes(req.session.staff.role)) {
-    return res.status(403).json({ error: 'Permission denied.' });
-  }
-
-  const settings = getPublicSettings();
-  const loyaltySettings = getLoyaltyConfig();
-  res.json({ settings, loyalty: loyaltySettings });
+  res.json({ settings: getPublicSettings(), loyalty: getLoyaltyConfig() });
 });
 
 app.patch('/api/staff/settings', requireStaffAuth, (req, res) => {
@@ -812,18 +605,9 @@ app.patch('/api/staff/settings', requireStaffAuth, (req, res) => {
   }
 
   const current = getPublicSettings();
-  const next = {
-    ...current,
-    ...req.body.site,
-    socialLinks: { ...current.socialLinks, ...(req.body.site?.socialLinks || {}) },
-    gallery: Array.isArray(req.body.site?.gallery) ? req.body.site.gallery : current.gallery
-  };
-
-  const loyaltyCurrent = getLoyaltyConfig();
-  const nextLoyalty = {
-    ...loyaltyCurrent,
-    ...(req.body.loyalty || {})
-  };
+  const next = { ...current, ...(req.body.site || {}), socialLinks: { ...current.socialLinks, ...((req.body.site && req.body.site.socialLinks) || {}) }, gallery: Array.isArray(req.body.site && req.body.site.gallery) ? req.body.site.gallery : current.gallery };
+  const currentLoyalty = getLoyaltyConfig();
+  const nextLoyalty = { ...currentLoyalty, ...(req.body.loyalty || {}) };
 
   db.prepare(`INSERT INTO settings (key, value, updated_at) VALUES ('site_settings', ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`).run(JSON.stringify(next), new Date().toISOString());
   db.prepare(`INSERT INTO settings (key, value, updated_at) VALUES ('loyalty_settings', ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`).run(JSON.stringify(nextLoyalty), new Date().toISOString());
@@ -832,12 +616,12 @@ app.patch('/api/staff/settings', requireStaffAuth, (req, res) => {
   res.json({ success: true, message: 'Settings updated.' });
 });
 
-app.use('/staff', express.static(path.join(__dirname, 'staff')));
-app.use(express.static(path.join(__dirname, 'public')));
-
 app.get('/staff', (req, res) => {
   res.sendFile(path.join(__dirname, 'staff', 'index.html'));
 });
+
+app.use('/staff', express.static(path.join(__dirname, 'staff')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
