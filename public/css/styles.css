@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Kafe Lilim cafe website with menu, loyalty rewards, and reviews." />
+    <title>Kafe Lilim</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container nav-shell">
+        <a href="#top" class="brand" aria-label="Kafe Lilim home">
+          <span class="brand-mark">K</span>
+          <span>Kafe Lilim</span>
+        </a>
+
+        <nav class="main-nav" aria-label="Main navigation">
+          <a href="#home">Home</a>
+          <a href="#menu">Menu</a>
+          <a href="#loyalty">Loyalty Card</a>
+          <a href="#reviews">Reviews</a>
+          <a href="#about">About</a>
+          <a href="#contact">Contact</a>
+        </nav>
+
+        <button class="mobile-menu-toggle" aria-expanded="false" aria-controls="mobile-menu">Menu</button>
+      </div>
+      <div class="mobile-menu" id="mobile-menu" hidden>
+        <a href="#home">Home</a>
+        <a href="#menu">Menu</a>
+        <a href="#loyalty">Loyalty Card</a>
+        <a href="#reviews">Reviews</a>
+        <a href="#about">About</a>
+        <a href="#contact">Contact</a>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero" id="home">
+        <div class="container hero-grid">
+          <div class="hero-copy">
+            <p class="eyebrow">Slow coffee • warm bites • easy mornings</p>
+            <h1 id="hero-message">Welcome to Kafe Lilim</h1>
+            <p class="lead">A cozy neighborhood cafe for thoughtful coffee, pastry rituals, and memorable conversations.</p>
+            <div class="hero-actions">
+              <a class="button primary" href="#menu">Explore menu</a>
+              <a class="button secondary" href="#loyalty">View loyalty card</a>
+            </div>
+          </div>
+          <div class="hero-card">
+            <img src="https://images.unsplash.com/photo-1497636577773-f1231844b336?auto=format&fit=crop&w=1200&q=80" alt="Warm cafe interior with coffee cups and plants" />
+          </div>
+        </div>
+      </section>
+
+      <section class="menu-section" id="menu">
+        <div class="container">
+          <div class="section-heading">
+            <p class="eyebrow">Our menu</p>
+            <h2>Thoughtful favorites</h2>
+          </div>
+
+          <div class="menu-toolbar">
+            <label class="search-box">
+              <span class="sr-only">Search menu</span>
+              <input type="search" id="menu-search" placeholder="Search drinks and snacks" />
+            </label>
+            <div class="filter-group" id="category-filters" aria-label="Category filters"></div>
+          </div>
+
+          <div id="menu-grid" class="menu-grid" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="loyalty-section" id="loyalty">
+        <div class="container section-heading">
+          <p class="eyebrow">Loyalty card</p>
+          <h2>Collect stamps, earn rewards</h2>
+        </div>
+
+        <div class="container loyalty-wrap">
+          <div class="loyalty-card" id="loyalty-card">
+            <div class="stamp-header">
+              <div>
+                <p class="eyebrow subtle">Kafe Lilim</p>
+                <h3>Digital Stamp Card</h3>
+              </div>
+              <span class="badge">Anonymous</span>
+            </div>
+
+            <div class="stamp-progress">
+              <div class="progress-meta">
+                <span id="reward-label">Reward: <strong>Complimentary drink or pastry</strong></span>
+              </div>
+              <div class="progress-bar">
+                <span id="progress-fill"></span>
+              </div>
+              <div class="progress-count">
+                <strong id="stamp-count">0</strong>
+                <span>/</span>
+                <span id="required-stamps">10</span>
+              </div>
+            </div>
+
+            <div id="stamp-slots" class="stamp-slots" aria-label="Stamp collection slots"></div>
+            <div class="card-id-row">
+              <span>Card ID</span>
+              <strong id="public-card-id">Not created yet</strong>
+            </div>
+          </div>
+
+          <div class="loyalty-panel">
+            <div class="card-actions">
+              <button type="button" class="button primary" id="create-card-btn">Create card</button>
+              <button type="button" class="button secondary" id="recover-card-btn">Use saved card</button>
+            </div>
+
+            <label for="card-id-input" class="input-label">Enter your loyalty card ID</label>
+            <div class="recover-row">
+              <input id="card-id-input" type="text" placeholder="LILIM-XXXX" />
+              <button type="button" class="button tertiary" id="lookup-card-btn">Lookup</button>
+            </div>
+            <p class="helper-text">Anonymous loyalty cards can be shared or copied. Clearing browser data may erase the only saved copy of your card ID.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="reviews-section" id="reviews">
+        <div class="container review-layout">
+          <div>
+            <div class="section-heading">
+              <p class="eyebrow">Reviews</p>
+              <h2>What guests are saying</h2>
+            </div>
+            <div id="review-summary" class="review-summary"></div>
+          </div>
+
+          <form id="review-form" class="review-form" novalidate>
+            <h3>Leave a review</h3>
+            <div class="star-rating" aria-label="Rate from 1 to 5 stars">
+              <input type="radio" name="rating" id="star5" value="5" aria-label="5 stars" />
+              <label for="star5" title="5 stars">★</label>
+              <input type="radio" name="rating" id="star4" value="4" aria-label="4 stars" />
+              <label for="star4" title="4 stars">★</label>
+              <input type="radio" name="rating" id="star3" value="3" aria-label="3 stars" />
+              <label for="star3" title="3 stars">★</label>
+              <input type="radio" name="rating" id="star2" value="2" aria-label="2 stars" />
+              <label for="star2" title="2 stars">★</label>
+              <input type="radio" name="rating" id="star1" value="1" aria-label="1 star" />
+              <label for="star1" title="1 star">★</label>
+            </div>
+
+            <label>
+              <span>Display name</span>
+              <input type="text" id="review-name" maxlength="50" placeholder="Your nickname" />
+            </label>
+
+            <label>
+              <span>Your review</span>
+              <textarea id="review-text" rows="5" maxlength="500" placeholder="What did you enjoy today?"></textarea>
+            </label>
+
+            <button type="submit" class="button primary">Submit review</button>
+            <div id="review-message" class="form-message" aria-live="polite"></div>
+          </form>
+        </div>
+      </section>
+
+      <section class="about-section" id="about">
+        <div class="container about-grid">
+          <div>
+            <div class="section-heading">
+              <p class="eyebrow">About</p>
+              <h2>Kafe Lilim story</h2>
+            </div>
+            <p id="story-text">A warm neighborhood cafe with everyday rituals and thoughtful coffee.</p>
+          </div>
+          <div class="gallery" id="gallery-grid"></div>
+        </div>
+      </section>
+
+      <section class="contact-section" id="contact">
+        <div class="container">
+          <div class="section-heading">
+            <p class="eyebrow">Contact</p>
+            <h2>Plan your visit</h2>
+          </div>
+
+          <div class="contact-grid">
+            <div class="contact-card">
+              <p><strong>Location</strong></p>
+              <p id="contact-location">[Editable location]</p>
+              <p><strong>Opening hours</strong></p>
+              <p id="contact-hours">[Editable hours]</p>
+              <p><strong>Contact</strong></p>
+              <p id="contact-details">[Editable phone and email]</p>
+            </div>
+            <div class="map-card">
+              <div id="map-placeholder" class="map-placeholder">Map embed will appear here when configured.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-shell">
+        <p>© <span id="year">2026</span> Kafe Lilim</p>
+        <div class="footer-links">
+          <a href="#menu">Menu</a>
+          <a href="#loyalty">Loyalty</a>
+          <a href="#reviews">Reviews</a>
+          <a href="#contact">Contact</a>
+        </div>
+      </div>
+    </footer>
+
+    <script src="/js/app.js"></script>
+  </body>
+</html>
