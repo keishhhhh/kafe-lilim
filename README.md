@@ -23,8 +23,8 @@ This project provides a complete small-cafe web application with:
 3. Start the server:
    npm start
 4. Visit:
-   - public website: http://localhost:3000/
-   - staff portal: http://localhost:3000/staff/
+   - public website: 
+   - staff portal: 
 
 ## Environment configuration
 Set the following in `.env`:
