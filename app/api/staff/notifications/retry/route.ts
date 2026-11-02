@@ -1,0 +1,2 @@
+import { NextRequest } from 'next/server';import { checkOrigin,json,withApi } from '@/lib/http';import { requireStaff } from '@/lib/auth/session';import { flushOutbox } from '@/lib/notifications/outbox';import { db } from '@/lib/db';
+export async function POST(req:NextRequest){return withApi(async()=>{checkOrigin(req);await requireStaff();await db.notification.updateMany({where:{state:'FAILED',attempts:{gte:7}},data:{state:'PENDING',attempts:0,nextAttemptAt:new Date()}});await flushOutbox(40);return json({processed:true});});}
