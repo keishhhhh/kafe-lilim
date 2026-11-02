@@ -1,0 +1,2 @@
+import { NextRequest } from 'next/server';import { checkOrigin,json,withApi } from '@/lib/http';import { requireStaff } from '@/lib/auth/session';import { expireCheckout } from '@/lib/payments/paymongo';
+export async function POST(req:NextRequest,{params}:{params:Promise<{id:string}>}){return withApi(async()=>{checkOrigin(req);await requireStaff('ADMIN');await expireCheckout((await params).id);return json({expired:true});});}
