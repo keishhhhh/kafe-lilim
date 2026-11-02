@@ -1,0 +1,20 @@
+name: Code checks
+on: [push, pull_request]
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Replace npm install with npm ci after committing the generated package-lock.json.
+      - run: npm install --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+        env:
+          DATABASE_URL: postgresql://unused:unused@localhost:5432/unused
+          DIRECT_URL: postgresql://unused:unused@localhost:5432/unused
+          APP_ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
