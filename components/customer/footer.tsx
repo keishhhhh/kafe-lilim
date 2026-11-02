@@ -1,0 +1,2 @@
+import Link from 'next/link';
+export function Footer({name='Kafe Lilim'}:{name?:string}){return <footer className="footer"><div className="container footer-grid"><div><h3>{name}</h3><p className="muted">A little comfort in every cup. Pickup only.</p><span className="tiny muted">© {new Date().getFullYear()} {name}</span></div><div><b>Explore</b><p><Link href="/menu">The menu</Link></p><p><Link href="/cart">Your basket</Link></p></div><div><b>Information</b><p><Link href="/privacy">Privacy</Link></p><p><Link href="/terms">Terms</Link></p></div></div></footer>}
