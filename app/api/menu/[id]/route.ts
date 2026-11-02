@@ -1,0 +1,2 @@
+import { db } from '@/lib/db';import { json,withApi,ApiError } from '@/lib/http';
+export async function GET(_request:Request,{params}:{params:Promise<{id:string}>}){return withApi(async()=>{const {id}=await params;const item=await db.menuItem.findFirst({where:{id,archived:false,hidden:false},include:{inventory:true,category:true,modifierGroups:{include:{options:true}}}});if(!item)throw new ApiError(404,'Item not found');return json(item);});}
