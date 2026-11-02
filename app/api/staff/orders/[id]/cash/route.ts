@@ -1,0 +1,2 @@
+import { NextRequest } from 'next/server';import { checkOrigin,json,withApi } from '@/lib/http';import { requireStaff } from '@/lib/auth/session';import { collectCash } from '@/lib/orders';
+export async function POST(req:NextRequest,{params}:{params:Promise<{id:string}>}){return withApi(async()=>{checkOrigin(req);const staff=await requireStaff();await collectCash((await params).id,staff.id);return json({recorded:true});});}
