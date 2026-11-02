@@ -1,0 +1,3 @@
+import { CheckoutForm } from '@/components/customer/checkout-form';import { db } from '@/lib/db';
+export const dynamic='force-dynamic';export const metadata={title:'Checkout'};
+export default async function CheckoutPage(){const settings=await db.businessSettings.findUnique({where:{id:'main'}});if(!settings)return <div className="container section">Cafe settings need to be configured.</div>;return <div className="container"><div className="page-intro"><span className="eyebrow">Just a few more details</span><h1>Checkout</h1><p className="muted">Your order, prepared for pickup with care.</p></div><CheckoutForm settings={settings}/><div style={{height:80}}/></div>}
