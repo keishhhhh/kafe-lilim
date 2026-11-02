@@ -1,0 +1,2 @@
+'use client';import { useState } from 'react';
+export function RetryNotices(){const [message,setMessage]=useState('');const [busy,setBusy]=useState(false);return <div><button className="btn btn-outline btn-small" disabled={busy} onClick={async()=>{setBusy(true);try{const r=await fetch('/api/staff/notifications/retry',{method:'POST'});setMessage(r.ok?'Delivery attempted. Refresh to see updated states.':'Retry could not be completed.');}finally{setBusy(false);}}}>Retry due notifications</button>{message&&<p className="tiny muted" role="status">{message}</p>}</div>}
