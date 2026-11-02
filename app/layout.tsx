@@ -1,0 +1,3 @@
+import './globals.css';import { Providers } from '@/components/providers';import { Header } from '@/components/customer/header';import { Footer } from '@/components/customer/footer';
+export const metadata={title:{default:'Kafe Lilim | A quiet corner, one cup at a time',template:'%s | Kafe Lilim'},description:'Cozy café drinks and treats, prepared for pickup.',manifest:'/manifest.webmanifest',icons:{icon:'/icon.svg'}};
+export default function RootLayout({children}:{children:React.ReactNode}){return <html lang="en" suppressHydrationWarning><body><Providers><Header/><main id="main">{children}</main><Footer/></Providers></body></html>;}
