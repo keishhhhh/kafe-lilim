@@ -1,0 +1,2 @@
+import { NextRequest } from 'next/server';import { checkOrigin,json,withApi } from '@/lib/http';import { requireStaff } from '@/lib/auth/session';import { reconcileCheckout } from '@/lib/payments/paymongo';import { flushOutbox } from '@/lib/notifications/outbox';
+export async function POST(req:NextRequest,{params}:{params:Promise<{id:string}>}){return withApi(async()=>{checkOrigin(req);await requireStaff();const result=await reconcileCheckout((await params).id);await flushOutbox(3);return json(result);});}
