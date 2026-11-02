@@ -1,0 +1,2 @@
+import { NextRequest } from 'next/server';import { requireStaff } from '@/lib/auth/session';import { json,withApi,ApiError } from '@/lib/http';import { getAnalytics } from '@/lib/analytics';import { localDate } from '@/lib/time';
+export async function GET(req:NextRequest){return withApi(async()=>{await requireStaff();const from=req.nextUrl.searchParams.get('from')??localDate(),to=req.nextUrl.searchParams.get('to')??from;if(!/^\d{4}-\d\d-\d\d$/.test(from+'' )||!/^\d{4}-\d\d-\d\d$/.test(to))throw new ApiError(400,'Invalid date');return json(await getAnalytics(from,to));});}
