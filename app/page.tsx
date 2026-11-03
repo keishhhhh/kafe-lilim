@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { MenuBrowser } from '@/components/customer/menu-browser';
 
+// Keep this file as the App Router root page module with an explicit default export.
 export const dynamic = 'force-dynamic';
 export const metadata = {
   title: 'Kafe Lilim | A quiet corner, one cup at a time',
