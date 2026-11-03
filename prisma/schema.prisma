@@ -1,254 +1,341 @@
-generator client { provider = "prisma-client-js" }
-datasource db { provider = "postgresql" url = env("DATABASE_URL") directUrl = env("DIRECT_URL") }
+generator client {
+  provider = "prisma-client-js"
+}
 
-enum StaffRole { STAFF ADMIN }
-enum FulfillmentStatus { PENDING_PAYMENT CONFIRMED PREPARING READY_FOR_PICKUP COMPLETED CANCELLED }
-enum PaymentStatus { UNPAID PENDING PAID FAILED REFUNDED PARTIALLY_REFUNDED }
-enum PaymentMethod { GCASH PAY_AT_PICKUP }
-enum ReservationStatus { ACTIVE CONSUMED RELEASED }
-enum NoticeKind { CONFIRMATION PAYMENT_READY READY CANCELLED }
-enum NoticeChannel { EMAIL PUSH }
-enum NoticeState { PENDING SENDING SENT FAILED }
-enum RefundStatus { REQUESTED PENDING PROCESSING SUCCEEDED FAILED }
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum StaffRole {
+  STAFF
+  ADMIN
+}
+
+enum FulfillmentStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  PREPARING
+  READY_FOR_PICKUP
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentMethod {
+  GCASH
+  PAY_AT_PICKUP
+}
+
+enum ReservationStatus {
+  ACTIVE
+  CONSUMED
+  RELEASED
+}
+
+enum NoticeKind {
+  CONFIRMATION
+  PAYMENT_READY
+  READY
+  CANCELLED
+}
+
+enum NoticeChannel {
+  EMAIL
+  PUSH
+}
+
+enum NoticeState {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+}
+
+enum RefundStatus {
+  REQUESTED
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+}
 
 model StaffUser {
-  id String @id @default(cuid())
-  email String @unique
-  name String
+  id           String        @id @default(cuid())
+  email        String        @unique
+  name         String
   passwordHash String
-  role StaffRole @default(STAFF)
-  active Boolean @default(true)
-  createdAt DateTime @default(now())
-  sessions StaffSession[]
-  auditLogs AuditLog[]
+  role         StaffRole     @default(STAFF)
+  active       Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  sessions     StaffSession[]
+  auditLogs    AuditLog[]
 }
+
 model StaffSession {
-  id String @id @default(cuid())
-  tokenHash String @unique
-  staffId String
-  staff StaffUser @relation(fields:[staffId], references:[id], onDelete:Cascade)
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  staffId   String
+  staff     StaffUser @relation(fields: [staffId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   revokedAt DateTime?
-  createdAt DateTime @default(now())
-  @@index([staffId,expiresAt])
+  createdAt DateTime  @default(now())
+
+  @@index([staffId, expiresAt])
 }
+
 model RateLimit {
-  key String @id
+  key         String   @id
   windowStart DateTime
-  count Int @default(0)
+  count       Int      @default(0)
 }
+
 model BusinessSettings {
-  id String @id @default("main")
-  name String @default("Kafe Lilim")
-  tagline String @default("Your quiet corner, one cup at a time.")
-  description String @default("A slow moment, made with care.")
-  heroImage String?
-  logoUrl String?
-  address String @default("SAMPLE ADDRESS — add your actual café location before taking orders")
-  email String @default("placeholder@example.com")
-  phone String @default("Not configured")
-  openTime String @default("08:00")
-  closeTime String @default("20:00")
-  closedDates Json @default("[]")
-  prepMinutes Int @default(30)
-  advanceOrdering Boolean @default(true)
-  acceptOrders Boolean @default(false)
-  pickupInstructions String @default("Please collect your order at the café counter.")
-  socialUrl String?
-  updatedAt DateTime @updatedAt
+  id                 String   @id @default("main")
+  name               String   @default("Kafe Lilim")
+  tagline            String   @default("Your quiet corner, one cup at a time.")
+  description        String   @default("A slow moment, made with care.")
+  heroImage          String?
+  logoUrl            String?
+  address            String   @default("SAMPLE ADDRESS — add your actual café location before taking orders")
+  email              String   @default("placeholder@example.com")
+  phone              String   @default("Not configured")
+  openTime           String   @default("08:00")
+  closeTime          String   @default("20:00")
+  closedDates        Json     @default("[]")
+  prepMinutes        Int      @default(30)
+  advanceOrdering    Boolean  @default(true)
+  acceptOrders       Boolean  @default(false)
+  pickupInstructions String   @default("Please collect your order at the café counter.")
+  socialUrl          String?
+  updatedAt          DateTime @updatedAt
 }
+
 model Category {
-  id String @id @default(cuid())
-  name String @unique
-  sortOrder Int @default(0)
-  items MenuItem[]
+  id        String     @id @default(cuid())
+  name      String     @unique
+  sortOrder Int        @default(0)
+  items     MenuItem[]
 }
+
 model MenuItem {
-  id String @id @default(cuid())
-  name String
-  description String @default("")
-  priceCentavos Int
-  imageUrl String?
-  categoryId String
-  category Category @relation(fields:[categoryId], references:[id])
-  featured Boolean @default(false)
-  hidden Boolean @default(false)
-  archived Boolean @default(false)
-  available Boolean @default(true)
-  inventory Inventory?
+  id             String         @id @default(cuid())
+  name           String
+  description    String         @default("")
+  priceCentavos  Int
+  imageUrl       String?
+  categoryId     String
+  category       Category       @relation(fields: [categoryId], references: [id])
+  featured       Boolean        @default(false)
+  hidden         Boolean        @default(false)
+  archived       Boolean        @default(false)
+  available      Boolean        @default(true)
+  inventory      Inventory?
   modifierGroups ModifierGroup[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  @@index([categoryId,archived,hidden])
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([categoryId, archived, hidden])
 }
+
 model ModifierGroup {
-  id String @id @default(cuid())
-  itemId String
-  item MenuItem @relation(fields:[itemId], references:[id], onDelete:Cascade)
-  name String
-  minSelect Int @default(0)
-  maxSelect Int @default(1)
-  sortOrder Int @default(0)
-  options ModifierOption[]
+  id        String          @id @default(cuid())
+  itemId    String
+  item      MenuItem        @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  name      String
+  minSelect Int             @default(0)
+  maxSelect Int             @default(1)
+  sortOrder Int             @default(0)
+  options   ModifierOption[]
+
   @@index([itemId])
 }
+
 model ModifierOption {
-  id String @id @default(cuid())
-  groupId String
-  group ModifierGroup @relation(fields:[groupId], references:[id], onDelete:Cascade)
-  name String
-  priceCentavos Int @default(0)
-  available Boolean @default(true)
+  id             String       @id @default(cuid())
+  groupId        String
+  group          ModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  name           String
+  priceCentavos  Int          @default(0)
+  available      Boolean      @default(true)
 }
+
 model Inventory {
-  id String @id @default(cuid())
-  itemId String @unique
-  item MenuItem @relation(fields:[itemId], references:[id], onDelete:Cascade)
-  available Int @default(0)
-  reserved Int @default(0)
-  lowStockAt Int @default(5)
-  unlimited Boolean @default(false)
-  movements InventoryMovement[]
+  id          String             @id @default(cuid())
+  itemId      String             @unique
+  item        MenuItem           @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  available   Int                @default(0)
+  reserved    Int                @default(0)
+  lowStockAt  Int                @default(5)
+  unlimited   Boolean            @default(false)
+  movements   InventoryMovement[]
   reservations StockReservation[]
-  updatedAt DateTime @updatedAt
+  updatedAt   DateTime           @updatedAt
 }
+
 model InventoryMovement {
-  id String @id @default(cuid())
-  inventoryId String
-  inventory Inventory @relation(fields:[inventoryId], references:[id])
-  deltaAvailable Int @default(0)
-  deltaReserved Int @default(0)
-  reason String
-  orderId String?
-  staffId String?
-  createdAt DateTime @default(now())
-  @@index([inventoryId,createdAt])
+  id             String    @id @default(cuid())
+  inventoryId    String
+  inventory      Inventory @relation(fields: [inventoryId], references: [id])
+  deltaAvailable Int       @default(0)
+  deltaReserved  Int       @default(0)
+  reason         String
+  orderId        String?
+  staffId        String?
+  createdAt      DateTime  @default(now())
+
+  @@index([inventoryId, createdAt])
 }
+
 model Order {
-  id String @id @default(cuid())
-  orderNumber String @unique
-  clientRequestId String @unique
-  trackingTokenHash String @unique
+  id                    String             @id @default(cuid())
+  orderNumber           String             @unique
+  clientRequestId       String             @unique
+  trackingTokenHash     String             @unique
   trackingTokenEncrypted String
-  customerName String
-  customerEmail String
-  customerPhone String?
-  pickupAt DateTime
-  instructions String?
-  fulfillmentStatus FulfillmentStatus @default(CONFIRMED)
-  paymentStatus PaymentStatus @default(UNPAID)
-  paymentMethod PaymentMethod
-  totalCentavos Int
-  currency String @default("PHP")
-  cancelReason String?
-  refundRequired Boolean @default(false)
-  paidAt DateTime?
-  completedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  items OrderItem[]
-  payments Payment[]
-  refunds Refund[]
-  reservations StockReservation[]
-  notifications Notification[]
-  subscriptions PushSubscription[]
+  customerName          String
+  customerEmail         String
+  customerPhone         String?
+  pickupAt              DateTime
+  instructions          String?
+  fulfillmentStatus     FulfillmentStatus  @default(CONFIRMED)
+  paymentStatus         PaymentStatus      @default(UNPAID)
+  paymentMethod         PaymentMethod
+  totalCentavos         Int
+  currency              String             @default("PHP")
+  cancelReason          String?
+  refundRequired        Boolean            @default(false)
+  paidAt                DateTime?
+  completedAt           DateTime?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  items                 OrderItem[]
+  payments              Payment[]
+  refunds               Refund[]
+  reservations          StockReservation[]
+  notifications         Notification[]
+  subscriptions         PushSubscription[]
+
   @@index([createdAt])
-  @@index([pickupAt,fulfillmentStatus])
-  @@index([paymentStatus,paidAt])
+  @@index([pickupAt, fulfillmentStatus])
+  @@index([paymentStatus, paidAt])
 }
+
 model OrderItem {
-  id String @id @default(cuid())
-  orderId String
-  order Order @relation(fields:[orderId],references:[id])
+  id           String @id @default(cuid())
+  orderId      String
+  order        Order  @relation(fields: [orderId], references: [id])
   originalItemId String
-  name String
-  quantity Int
+  name         String
+  quantity     Int
   unitCentavos Int
-  modifiers Json
-  note String?
+  modifiers    Json
+  note         String?
   lineCentavos Int
+
   @@index([orderId])
 }
+
 model Payment {
-  id String @id @default(cuid())
-  orderId String
-  order Order @relation(fields:[orderId],references:[id])
-  providerSessionId String? @unique
-  providerPaymentId String? @unique
-  checkoutUrl String?
-  amountCentavos Int
-  status PaymentStatus
-  method PaymentMethod
-  createdAt DateTime @default(now())
-  collectedAt DateTime?
-  refunds Refund[]
-  @@index([orderId,status])
+  id                String        @id @default(cuid())
+  orderId           String
+  order             Order         @relation(fields: [orderId], references: [id])
+  providerSessionId String?       @unique
+  providerPaymentId String?       @unique
+  checkoutUrl       String?
+  amountCentavos    Int
+  status            PaymentStatus
+  method            PaymentMethod
+  createdAt         DateTime      @default(now())
+  collectedAt       DateTime?
+  refunds           Refund[]
+
+  @@index([orderId, status])
 }
+
 model Refund {
-  id String @id @default(cuid())
-  orderId String
-  order Order @relation(fields:[orderId],references:[id])
-  paymentId String
-  payment Payment @relation(fields:[paymentId],references:[id])
-  providerRefundId String? @unique
-  amountCentavos Int
-  status RefundStatus @default(REQUESTED)
-  reason String
-  staffId String
-  completedAt DateTime?
-  createdAt DateTime @default(now())
-  @@index([orderId,status])
-  @@index([completedAt,status])
+  id                String       @id @default(cuid())
+  orderId           String
+  order             Order        @relation(fields: [orderId], references: [id])
+  paymentId         String
+  payment           Payment      @relation(fields: [paymentId], references: [id])
+  providerRefundId  String?      @unique
+  amountCentavos    Int
+  status            RefundStatus @default(REQUESTED)
+  reason            String
+  staffId           String
+  completedAt       DateTime?
+  createdAt         DateTime     @default(now())
+
+  @@index([orderId, status])
+  @@index([completedAt, status])
 }
+
 model PaymentEvent {
-  id String @id @default(cuid())
-  externalId String @unique
+  id        String   @id @default(cuid())
+  externalId String  @unique
   eventType String
   createdAt DateTime @default(now())
 }
+
 model StockReservation {
-  id String @id @default(cuid())
-  orderId String
-  order Order @relation(fields:[orderId],references:[id])
+  id          String            @id @default(cuid())
+  orderId     String
+  order       Order             @relation(fields: [orderId], references: [id])
   inventoryId String
-  inventory Inventory @relation(fields:[inventoryId],references:[id])
-  quantity Int
-  status ReservationStatus @default(ACTIVE)
-  createdAt DateTime @default(now())
-  @@unique([orderId,inventoryId])
-  @@index([status,createdAt])
+  inventory   Inventory         @relation(fields: [inventoryId], references: [id])
+  quantity    Int
+  status      ReservationStatus @default(ACTIVE)
+  createdAt   DateTime          @default(now())
+
+  @@unique([orderId, inventoryId])
+  @@index([status, createdAt])
 }
+
 model Notification {
-  id String @id @default(cuid())
-  orderId String
-  order Order @relation(fields:[orderId],references:[id])
-  kind NoticeKind
-  channel NoticeChannel
-  state NoticeState @default(PENDING)
-  attempts Int @default(0)
-  nextAttemptAt DateTime @default(now())
-  lastError String?
-  deliveredAt DateTime?
-  createdAt DateTime @default(now())
-  @@unique([orderId,kind,channel])
-  @@index([state,nextAttemptAt])
+  id            String        @id @default(cuid())
+  orderId       String
+  order         Order         @relation(fields: [orderId], references: [id])
+  kind          NoticeKind
+  channel       NoticeChannel
+  state         NoticeState   @default(PENDING)
+  attempts      Int           @default(0)
+  nextAttemptAt DateTime      @default(now())
+  lastError     String?
+  deliveredAt   DateTime?
+  createdAt     DateTime      @default(now())
+
+  @@unique([orderId, kind, channel])
+  @@index([state, nextAttemptAt])
 }
+
 model PushSubscription {
-  id String @id @default(cuid())
-  orderId String
-  order Order @relation(fields:[orderId],references:[id])
-  endpoint String @unique
-  p256dh String
-  auth String
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
   createdAt DateTime @default(now())
 }
+
 model AuditLog {
-  id String @id @default(cuid())
-  staffId String
-  staff StaffUser @relation(fields:[staffId],references:[id])
-  action String
-  targetId String
-  detail Json?
-  createdAt DateTime @default(now())
+  id        String    @id @default(cuid())
+  staffId   String
+  staff     StaffUser @relation(fields: [staffId], references: [id])
+  action    String
+  targetId  String
+  detail    Json?
+  createdAt DateTime  @default(now())
+
   @@index([createdAt])
 }
